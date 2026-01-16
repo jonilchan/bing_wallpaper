@@ -1,0 +1,96 @@
+name: Build and Release
+
+# 触发条件：
+# 1. 推送代码到 main 分支时触发构建（测试）
+# 2. 推送以 'v' 开头的标签（如 v1.0.0）时，触发构建并发布 Release
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch: # 允许你在网页上手动点按钮触发
+
+env:
+  CARGO_TERM_COLOR: always
+  # 请确保这里的名字和你 Cargo.toml 里的 [package] name 一致
+  BIN_NAME: bing_wallpaper
+
+jobs:
+  build:
+    name: Build - ${{ matrix.platform.os_name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin_suffix: ""
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin_suffix: ".exe"
+          - os_name: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bin_suffix: ""
+          - os_name: macOS-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bin_suffix: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      # Linux 特有的依赖（wallpaper 库可能需要）
+      - name: Install Linux Dependencies
+        if: matrix.platform.os_name == 'Linux-x86_64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb1-dev libx11-dev
+
+      - name: Build Binary
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      # 重命名文件，方便识别（例如 bing_wallpaper-Windows-x86_64.exe）
+      - name: Rename Binary
+        shell: bash
+        run: |
+          cp target/${{ matrix.platform.target }}/release/${{ env.BIN_NAME }}${{ matrix.platform.bin_suffix }} ${{ env.BIN_NAME }}-${{ matrix.platform.os_name }}${{ matrix.platform.bin_suffix }}
+
+      # 上传构建产物到 GitHub Actions 页面
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform.os_name }}
+          path: ${{ env.BIN_NAME }}-${{ matrix.platform.os_name }}${{ matrix.platform.bin_suffix }}
+
+  # 只有当推送 Tag 时才执行发布步骤
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List files
+        run: ls -R artifacts
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          # 将下载的所有文件夹里的文件发布出去
+          files: artifacts/**/*

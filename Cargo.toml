@@ -1,0 +1,19 @@
+[package]
+name = "bing_wallpaper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reqwest = { version = "0.13.1", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wallpaper = "3" # 核心库，处理跨平台壁纸设置
+dirs = "6"
+anyhow = "1" # 用于简单的错误处理
+chrono = "0.4.43"
+
+[profile.release]
+strip = true      # 自动剥离符号表和调试信息
+opt-level = "z"   # 告诉编译器优化目标是“最小尺寸” (可选)
+lto = true        # 开启链接时优化，进一步减小体积 (可选)

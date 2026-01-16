@@ -1,0 +1,128 @@
+# Bing Wallpaper Rust
+
+一个轻量的三端通用自动换壁纸工具。每天自动从必应 (Bing) 获取最新的 4K/UHD 壁纸，自动保存并设置为当前系统桌面。
+
+## ✨ 特性
+
+- **高清画质**：强制获取 4K/UHD 分辨率图片。
+- **防止缓存**：基于日期命名文件，彻底解决操作系统因路径不变而不刷新壁纸的问题。
+- **自动清理**：自动维护保存目录，默认仅保留最近 7 天的图片，节省空间。
+- **轻量高效**：使用 Rust 编写，编译后体积小（经过 `strip` 处理），资源占用极低。
+- **三端支持**：完美适配 macOS, Windows, Linux。
+
+## 🚀 编译与安装
+
+### 1. 优化配置 (Cargo.toml)
+为了获得最小的体积并避免对系统 OpenSSL 的依赖，建议在 `Cargo.toml` 中使用以下配置：
+
+```toml
+[dependencies]
+# 使用 rustls-tls 提高可移植性
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+dirs = "5.0"
+wallpaper = "1.10"
+chrono = "0.4"
+
+[profile.release]
+strip = true      # 自动剥离符号表，大幅减小体积
+lto = true        # 链接时优化
+opt-level = "z"   # 优化目标为最小尺寸
+```
+
+### 2. 构建
+```bash
+cargo build --release
+```
+编译产物位于 `target/release/bing_wallpaper`。
+
+---
+
+## 📅 定时任务设置 (重点)
+
+为了实现壁纸每日自动更新，建议根据操作系统配置定时任务：
+
+### 🍏 macOS (使用 Launchd)
+**注意：** 请不要在 macOS 上使用 `cron`，因为它无法获得修改壁纸所需的 GUI 权限。
+
+1. 在 `~/Library/LaunchAgents/` 下创建文件 `com.bing.wallpaper.plist`。
+2. 写入以下内容（替换路径）：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bing.wallpaper</string>
+    <key>ProgramArguments</key>
+    <array>
+        <!-- 请修改为你的二进制程序绝对路径 -->
+        <string>/Users/你的用户名/path/to/bing_wallpaper</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/bing_wallpaper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/bing_wallpaper.err</string>
+</dict>
+</plist>
+```
+
+3. 加载任务：
+```bash
+launchctl load ~/Library/LaunchAgents/com.bing.wallpaper.plist
+```
+
+### 🪟 Windows (使用任务计划程序)
+1. 搜索并打开“任务计划程序”。
+2. 创建基本任务，设置触发器为“每天”。
+3. 操作选择“启动程序”，浏览并选择编译好的 `bing_wallpaper.exe`。
+4. 在“条件”选项卡中，勾选“只有在网络连接可用时才启动”。
+
+### 🐧 Linux
+可以使用 `cron` 或 `systemd timer`。
+```bash
+# 编辑 crontab
+crontab -e
+# 添加一行 (每天上午 9 点运行)
+0 9 * * * /path/to/bing_wallpaper
+```
+
+---
+
+## ⚠️ 常见问题排查 (macOS)
+
+### 1. "无法打开，因为无法验证开发者"
+如果你将编译好的程序发给别人，对方会由于 macOS Gatekeeper 限制无法运行。
+- **解决方法**：右键点击程序 -> 选择“打开”；或者在终端运行：
+  ```bash
+  xattr -d com.apple.quarantine ./bing_wallpaper
+  ```
+
+### 2. "osascript exited with status code 1"
+这通常发生在 `cron` 环境中。
+- **原因**：`cron` 缺少修改系统设置的 TCC 权限。
+- **解决方法**：请使用上述的 `Launchd (.plist)` 方式部署。
+
+### 3. 壁纸没有即时刷新
+- **原因**：操作系统缓存了旧壁纸路径。
+- **解决**：本程序已通过“每日日期重命名”策略解决此问题。
+
+## 📂 文件存储路径
+- **macOS**: `~/Pictures/BingWallpapers/`
+- **Windows**: `C:\Users\用户名\Pictures\BingWallpapers\`
+- **Linux**: `~/Pictures/BingWallpapers/` (视 XDG 配置而定)
+
+---
+
+## 📜 许可证
+MIT License
