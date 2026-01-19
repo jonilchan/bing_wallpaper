@@ -44,51 +44,13 @@ cargo build --release
 
 为了实现壁纸每日自动更新，建议根据操作系统配置定时任务：
 
-### 🍏 macOS (使用 Launchd)
-**注意：** 请不要在 macOS 上使用 `cron`，因为它无法获得修改壁纸所需的 GUI 权限。
-
-1. 在 `~/Library/LaunchAgents/` 下创建文件 `com.bing.wallpaper.plist`。
-2. 写入以下内容（替换路径）：
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.bing.wallpaper</string>
-    <key>ProgramArguments</key>
-    <array>
-        <!-- 请修改为你的二进制程序绝对路径 -->
-        <string>/Users/你的用户名/path/to/bing_wallpaper</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>9</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
-    <key>StandardOutPath</key>
-    <string>/tmp/bing_wallpaper.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/bing_wallpaper.err</string>
-</dict>
-</plist>
-```
-
-3. 加载任务：
-```bash
-launchctl load ~/Library/LaunchAgents/com.bing.wallpaper.plist
-```
-
 ### 🪟 Windows (使用任务计划程序)
 1. 搜索并打开“任务计划程序”。
 2. 创建基本任务，设置触发器为“每天”。
 3. 操作选择“启动程序”，浏览并选择编译好的 `bing_wallpaper.exe`。
 4. 在“条件”选项卡中，勾选“只有在网络连接可用时才启动”。
 
-### 🐧 Linux
+### 🐧 Linux & 🍏 macOS
 可以使用 `cron` 或 `systemd timer`。
 ```bash
 # 编辑 crontab
